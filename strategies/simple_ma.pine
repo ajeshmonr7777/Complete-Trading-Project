@@ -1,0 +1,16 @@
+// This is a simplified Pine Script for our parser
+//@version=5
+strategy("Simple MA Cross", overlay=true)
+
+// Using shorter periods to ensure trades occur in the sample data
+fast = ta.sma(close, 10)
+slow = ta.sma(close, 20)
+
+longCondition = ta.crossover(fast, slow)
+shortCondition = ta.crossover(slow, fast)
+
+if (longCondition)
+    strategy.entry("Long", strategy.long)
+
+if (shortCondition)
+    strategy.close("Long")

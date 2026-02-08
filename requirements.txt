@@ -3,3 +3,10 @@ pandas
 yfinance
 plotly
 ta
+fastapi
+uvicorn
+websockets>=11.0
+python-binance>=1.0
+requests>=2.31.0
+yt-dlp>=2023.0.0
+python-dotenv

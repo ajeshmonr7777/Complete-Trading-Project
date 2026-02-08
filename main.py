@@ -5,13 +5,17 @@ from typing import List, Optional
 import pandas as pd
 import os
 import importlib.util
-from backtester import BacktestEngine
-from converters import PineScriptParser
+from backtesting.engine import BacktestEngine
+from shared.converters import PineScriptParser
 import datetime
 import shutil
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+
+# Import live trading server
+from live_trading.server import live_app
+
 
 app = FastAPI(title="Backtesting API")
 
@@ -27,9 +31,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount live trading API as sub-application
+app.mount("/api/live", live_app)
+
 @app.get("/")
 def read_root():
     return FileResponse('frontend_static/index.html')
+
+@app.get("/app")
+def read_app():
+    return FileResponse('frontend_static/app.html')
 
 class BacktestRequest(BaseModel):
     tickers: List[str]
@@ -44,16 +55,130 @@ class BacktestRequest(BaseModel):
     max_active_trades: Optional[int] = 1 # Default 1 (Single Mode)
     exit_on_signal: Optional[bool] = True # Default True (Standard Logic)
 
+import ast
+
+class StrategyUpdate(BaseModel):
+    code: str
+
+def extract_docstring(file_path):
+    """Extract docstring from a python file"""
+    try:
+        with open(file_path, "r") as f:
+            node = ast.parse(f.read())
+            return ast.get_docstring(node) or "No description available."
+    except Exception:
+        return "Description unavailable."
+
 @app.get("/strategies")
 def list_strategies():
-    os.makedirs("strategies", exist_ok=True)
-    files = [f for f in os.listdir("strategies") if f.endswith((".py", ".pine", ".txt"))]
-    return {"strategies": files}
+    strategies_dir = os.path.join("backtesting", "strategies")
+    os.makedirs(strategies_dir, exist_ok=True)
+    strategies = []
+    
+    files = [f for f in os.listdir(strategies_dir) if f.endswith((".py", ".pine", ".txt"))]
+    
+    for f in files:
+        # Generate clean name (remove extension and underscores)
+        clean_name = f.rsplit('.', 1)[0].replace('_', ' ').title()
+        description = "No description available."
+        
+        # Extract docstring for Python files
+        if f.endswith('.py'):
+            path = os.path.join(strategies_dir, f)
+            description = extract_docstring(path)
+            
+        strategies.append({
+            "filename": f,
+            "name": clean_name,
+            "description": description
+        })
+        
+    return {"strategies": strategies}
+
+@app.get("/strategies/{filename}")
+def get_strategy_content(filename: str):
+    strategies_dir = os.path.join("backtesting", "strategies")
+    file_path = os.path.join(strategies_dir, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Strategy not found")
+        
+    with open(file_path, "r") as f:
+        content = f.read()
+        
+    return {"filename": filename, "code": content}
+
+@app.put("/strategies/{filename}")
+def update_strategy_content(filename: str, update: StrategyUpdate):
+    strategies_dir = os.path.join("backtesting", "strategies")
+    file_path = os.path.join(strategies_dir, filename)
+    
+    # Security check: prevent directory traversal
+    if ".." in filename or "/" in filename:
+         raise HTTPException(status_code=400, detail="Invalid filename")
+         
+    try:
+        with open(file_path, "w") as f:
+            f.write(update.code)
+        return {"message": "Strategy updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- AI Strategy Generator Endpoints ---
+from backtesting.generator import generate_strategy_from_text_stream, generate_strategy_from_youtube_stream, save_strategy_file
+
+from fastapi.responses import StreamingResponse
+import json
+import asyncio
+
+class GenerateStrategyRequest(BaseModel):
+    type: str  # "text" or "youtube"
+    input: str # Description or URL
+
+class SaveStrategyRequest(BaseModel):
+    name: str
+    code: str
+
+@app.post("/api/generate-strategy")
+async def generate_strategy_endpoint(request: GenerateStrategyRequest):
+    """Generate strategy code from text or YouTube - Streaming"""
+    
+    # Use generator function based on type
+    if request.type == 'text':
+        generator = generate_strategy_from_text_stream(request.input)
+    elif request.type == 'youtube':
+        generator = generate_strategy_from_youtube_stream(request.input)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid strategy type")
+
+    # Wrapper to stream JSON lines
+    async def stream_generator():
+        try:
+             # Iterate over the sync generator
+             for item in generator:
+                 yield json.dumps(item) + "\n"
+                 await asyncio.sleep(0.01) 
+                 
+        except Exception as e:
+            yield json.dumps({"status": "error", "message": str(e)}) + "\n"
+
+    return StreamingResponse(stream_generator(), media_type="application/x-ndjson")
+
+@app.post("/api/save-strategy")
+async def save_strategy_endpoint(request: SaveStrategyRequest):
+    try:
+        if not request.name.endswith('.py'):
+            request.name += '.py'
+            
+        filename = save_strategy_file(request.code, request.name.replace('.py', ''))
+        return {"filename": filename, "message": "Strategy saved successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/strategies/upload")
 async def upload_strategy(file: UploadFile = File(...)):
-    os.makedirs("strategies", exist_ok=True)
-    file_path = os.path.join("strategies", file.filename)
+    strategies_dir = os.path.join("backtesting", "strategies")
+    os.makedirs(strategies_dir, exist_ok=True)
+    file_path = os.path.join(strategies_dir, file.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     return {"filename": file.filename}
@@ -65,7 +190,8 @@ def run_backtest(request: BacktestRequest):
         start_date = pd.to_datetime(request.start_date)
         end_date = pd.to_datetime(request.end_date)
         
-        file_path = os.path.join("strategies", request.strategy_file)
+        strategies_dir = os.path.join("backtesting", "strategies")
+        file_path = os.path.join(strategies_dir, request.strategy_file)
         if not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail="Strategy file not found")
             

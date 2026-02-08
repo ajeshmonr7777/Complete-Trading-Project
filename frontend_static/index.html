@@ -4,40 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlgoTrade Pro</title>
+    <title>AlgoTrade Pro | Select Mode</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         :root {
             --bg-color: #0f172a;
-            --sidebar-bg: #1e293b;
-            --card-bg: #1e293b;
+            --card-bg: rgba(30, 41, 59, 0.7);
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
-            --accent-color: #3b82f6;
-            --accent-hover: #2563eb;
-            --border-color: #334155;
-            --success-color: #10b981;
-            --danger-color: #ef4444;
-            --gradient-1: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-        }
-
-        [data-theme="light"] {
-            --bg-color: #f1f5f9;
-            --sidebar-bg: #ffffff;
-            --card-bg: #ffffff;
-            --text-primary: #0f172a;
-            --text-secondary: #64748b;
-            --accent-color: #3b82f6;
-            --accent-hover: #2563eb;
-            --border-color: #e2e8f0;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
 
         * {
@@ -50,624 +34,213 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-primary);
-            display: flex;
             height: 100vh;
-            overflow: hidden;
-            transition: background-color 0.3s ease;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 280px;
-            background-color: var(--sidebar-bg);
-            border-right: 1px solid var(--border-color);
-            padding: 24px 20px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            overflow-y: auto;
-            transition: background 0.3s ease;
-        }
-
-        .logo {
-            font-size: 22px;
-            font-weight: 700;
-            background: var(--gradient-1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 12px;
-            display: flex;
             align-items: center;
-            gap: 10px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .logo i {
-            -webkit-text-fill-color: initial;
-            color: #3b82f6;
-        }
-
-        .sidebar-divider {
-            height: 1px;
-            background: var(--border-color);
-            margin: 4px 0;
-            opacity: 0.5;
-        }
-
-        .section-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-secondary);
-            font-weight: 600;
-            margin-top: 4px;
-            margin-bottom: -4px;
-        }
-
-        .control-group {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .control-group.vertical {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 6px;
-        }
-
-        .row-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        .row-group .control-group {
-            flex: 1;
-            flex-direction: column;
-            gap: 6px;
-            align-items: flex-start;
-        }
-
-        label {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-weight: 500;
-            flex-shrink: 0;
-        }
-
-        .row-group label {
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        input,
-        select {
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            padding: 8px 10px;
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 13px;
-            outline: none;
-            transition: all 0.2s;
-            width: 140px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-            color-scheme: dark;
-            /* Fixes date picker icon color */
-        }
-
-        /* Specific fix for date inputs in compact rows */
-        .row-group input[type="date"] {
-            padding: 6px 4px;
-            /* Tighter padding */
-            font-size: 12px;
-            width: 100%;
-            /* Ensure it fits container */
-            min-width: 0;
-            /* Allow shrinking */
-        }
-
-        .vertical input,
-        .vertical select,
-        .row-group input,
-        #ticker_container {
-            width: 100%;
-        }
-
-        input:focus,
-        select:focus {
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-        }
-
-        .btn {
-            background: var(--gradient-1);
-            color: white;
-            padding: 12px;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.1s, opacity 0.2s;
-            display: flex;
             justify-content: center;
-            align-items: center;
-            gap: 8px;
-            margin-top: auto;
-            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
-        }
-
-        .btn:hover {
-            opacity: 0.95;
-            transform: translateY(-1px);
-        }
-
-        .btn:active {
-            transform: scale(0.98);
-        }
-
-        /* Main Content */
-        .main {
-            flex: 1;
-            padding: 32px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header h2 {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        /* Metrics */
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        .metric-card h3 {
-            font-size: 14px;
-            color: var(--text-secondary);
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        .metric-card .value {
-            font-size: 28px;
-            font-weight: 700;
-        }
-
-        .metric-card .sub {
-            font-size: 12px;
-            color: var(--success-color);
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            margin-top: 4px;
-        }
-
-        /* Summary Table Section */
-        .summary-section {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            margin-bottom: 24px;
-            display: none;
-            /* Hidden by default */
-        }
-
-        .summary-section h3 {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 16px;
-        }
-
-        /* Chart */
-        .chart-container {
-            height: 400px;
+            overflow: hidden;
             position: relative;
         }
 
-        /* Tables */
-        .table-container {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            text-align: left;
-            padding: 16px;
-            color: var(--text-secondary);
-            font-weight: 500;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        td {
-            padding: 16px;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 14px;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        .tag {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .tag.buy {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success-color);
-        }
-
-        .tag.sell {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--danger-color);
-        }
-
-        /* Analysis Dropdown */
-        #analysis_view {
-            background: var(--card-bg) !important;
-            border: 1px solid var(--border-color) !important;
-            color: var(--text-primary) !important;
-            padding: 10px 16px !important;
-            border-radius: 100px !important;
-            font-weight: 500;
-        }
-
-        /* Theme Toggle */
-        .theme-toggle {
-            background: none;
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 8px;
+        /* Ambient Background Glow */
+        .glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(15, 23, 42, 0) 70%);
             border-radius: 50%;
-            cursor: pointer;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            pointer-events: none;
+            z-index: 0;
+            animation: pulse 8s infinite alternate;
         }
 
-        .theme-toggle:hover {
-            color: var(--text-primary);
-            border-color: var(--text-primary);
+        .glow-1 {
+            top: -20%;
+            left: -10%;
         }
 
-        /* Loader */
-        .loader {
-            display: none;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+        .glow-2 {
+            bottom: -20%;
+            right: -10%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(15, 23, 42, 0) 70%);
         }
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: scale(1.2);
+                opacity: 0.8;
             }
         }
-    </style>
-</head>
 
-<body>
-
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="logo">
-            <i class="fa-solid fa-chart-line"></i> AlgoTrade Pro
-        </div>
-
-        <div class="section-label">Data Settings</div>
-
-        <div class="control-group">
-            <label>Market</label>
-            <select id="market_type" onchange="updateTickerOptions()">
-                <option value="Indian Stocks">Indian Stocks</option>
-                <option value="US Stocks">US Stocks</option>
-                <option value="Forex">Forex</option>
-                <option value="Crypto">Crypto</option>
-                <option value="Custom">Custom</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label>Ticker</label>
-            <div id="ticker_container" style="width: 140px;">
-                <!-- Populated by JS -->
-                <input type="text" id="ticker" value="RELIANCE.NS">
-            </div>
-        </div>
-
-        <div class="control-group">
-            <label>Interval</label>
-            <select id="interval" onchange="updateDateRange()">
-                <option value="1d">1 Day</option>
-                <option value="1h">1 Hour</option>
-                <option value="15m">15 Minutes</option>
-                <option value="5m">5 Minutes</option>
-                <option value="1m">1 Minute</option>
-            </select>
-        </div>
-
-        <div class="row-group">
-            <div class="control-group">
-                <label>Start Of Data</label>
-                <input type="date" id="start_date" value="2023-01-01">
-            </div>
-            <div class="control-group">
-                <label>End Date</label>
-                <input type="date" id="end_date">
-            </div>
-        </div>
-
-        <div class="sidebar-divider"></div>
-        <div class="section-label">Risk Management</div>
-
-        <div class="control-group" style="justify-content: flex-start;">
-            <input type="checkbox" id="enable_risk" onchange="toggleRiskMgmt()" checked
-                style="width: auto; margin-right: 8px;">
-            <label for="enable_risk" style="cursor: pointer;">Enable Risk Controls</label>
-        </div>
-
-        <div id="risk_inputs" style="display: flex; flex-direction: column; gap: 12px;">
-            <div class="control-group">
-                <label>Capital ($)</label>
-                <input type="number" id="capital" value="10000">
-            </div>
-
-            <div class="row-group">
-                <div class="control-group">
-                    <label>Stop Loss %</label>
-                    <input type="number" id="stop_loss" value="2.0" step="0.1">
-                </div>
-                <div class="control-group">
-                    <label>Risk:Reward</label>
-                    <input type="number" id="risk_reward" value="2.0" step="0.1">
-                </div>
-            </div>
-        </div>
-
-        <div class="sidebar-divider"></div>
-        <div class="section-label">Execution</div>
-
-        <div class="control-group">
-            <label>Max Active Trades</label>
-            <input type="number" id="max_active_trades" value="1" min="1" step="1">
-        </div>
-
-        <div class="control-group" style="justify-content: flex-start;">
-            <input type="checkbox" id="exit_on_signal" checked style="width: auto; margin-right: 8px;">
-            <label for="exit_on_signal" style="cursor: pointer;">Exit via Signal</label>
-        </div>
-
-        <div class="control-group vertical">
-            <label style="align-self: flex-start;">Strategy</label>
-            <select id="strategy_file">
-                <option value="" disabled selected>Loading...</option>
-            </select>
-        </div>
-
-        <button class="btn" onclick="runBacktest()">
-            <div class="loader" id="loader"></div>
-            <span id="btnText">Run Backtest</span>
-        </button>
-    </div>
-
-    <!-- Main Content -->
-    <div class="main">
-        <div class="header">
-            <div>
-                <h2>Dashboard</h2>
-                <p style="color: var(--text-secondary); font-size: 14px;">Real-time backtesting performance</p>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div id="analysis_slot">
-                    <!-- Analysis Dropdown will go here -->
-                </div>
-                <button class="theme-toggle" onclick="toggleTheme()">
-                    <i class="fa-solid fa-sun" id="themeIcon"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Metrics -->
-        <div class="metrics-grid">
-            <div class="card metric-card">
-                <h3>Total Return</h3>
-                <div class="value" id="total_return">0.00%</div>
-                <div class="sub">Net Profit/Loss</div>
-            </div>
-            <div class="card metric-card">
-                <h3>Win Rate</h3>
-                <div class="value" id="win_rate">0.0%</div>
-                <div class="sub">Profitable Trades</div>
-            </div>
-            <div class="card metric-card">
-                <h3>Final Equity</h3>
-                <div class="value" id="final_equity">$10,000.00</div>
-                <div class="sub">Ending Balance</div>
-            </div>
-            <div class="card metric-card">
-                <h3>Total Trades</h3>
-                <div class="value" id="num_trades">0</div>
-                <div class="sub">Executed Orders</div>
-            </div>
-        </div>
-
-        <!-- Chart -->
-        <div class="card">
-            <h3 style="margin-bottom: 16px;">Equity Curve</h3>
-            <div class="chart-container">
-                <canvas id="equityChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Portfolio Performance Summary -->
-        <div id="summarySection" class="summary-section">
-            <h3>Performance Summary</h3>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Total Return</th>
-                            <th>Final Equity</th>
-                            <th>Trades</th>
-                        </tr>
-                    </thead>
-                    <tbody id="summaryBody">
-                        <!-- Filled by JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Trades Table -->
-        <div class="card">
-            <h3 style="margin-bottom: 16px;">Trade Log</h3>
-            <div class="table-container">
-                <table id="tradesTable">
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Entry Time</th>
-                            <th>Entry Price</th>
-                            <th>Exit Time</th>
-                            <th>Exit Price</th>
-                            <th>Exit Reason</th>
-                            <th>PnL</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                        <tr>
-                            <td colspan="7" style="text-align: center;">No trades yet</td>
-                        </tr>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Error Modal -->
-    <div id="errorModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                <h3>Error</h3>
-            </div>
-            <p id="errorMessage">Something went wrong.</p>
-            <button class="modal-btn" onclick="closeModal()">Close</button>
-        </div>
-    </div>
-
-    <style>
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(5px);
-            animation: fadeIn 0.2s ease-out;
-        }
-
-        .modal-content {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 24px;
-            width: 90%;
-            max-width: 400px;
+        .container {
+            z-index: 1;
             text-align: center;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            transform: scale(0.95);
-            animation: popIn 0.2s ease-out forwards;
+            width: 100%;
+            max-width: 1200px;
+            padding: 2rem;
         }
 
-        .modal-header {
+        header {
+            margin-bottom: 4rem;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        p.subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .cards-wrapper {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            perspective: 1000px;
+            flex-wrap: wrap;
+        }
+
+        .mode-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 3rem;
+            width: 380px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
+            animation: fadeInUp 1s ease-out;
+            animation-fill-mode: both;
         }
 
-        .modal-header i {
-            font-size: 48px;
-            color: var(--danger-color);
+        .mode-card:nth-child(2) {
+            animation-delay: 0.2s;
         }
 
-        .modal-header h3 {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
+        .mode-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
         }
 
-        #errorMessage {
-            color: var(--text-secondary);
-            font-size: 15px;
-            line-height: 1.5;
-            margin-bottom: 24px;
-        }
-
-        .modal-btn {
-            background: var(--bg-color);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
+        .mode-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+            transform: translateX(-100%);
+            transition: 0.5s;
         }
 
-        .modal-btn:hover {
-            background: var(--border-color);
+        .mode-card:hover::before {
+            transform: translateX(100%);
+        }
+
+        .icon-wrapper {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            transition: 0.3s;
+        }
+
+        .mode-card:hover .icon-wrapper {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        p.desc {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+
+        .btn-fake {
+            padding: 0.75rem 2rem;
+            border-radius: 99px;
+            background: transparent;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .mode-card:hover .btn-fake {
+            background: var(--text-primary);
+            color: var(--bg-color);
+            border-color: var(--text-primary);
+        }
+
+        footer {
+            margin-top: 4rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            opacity: 0.6;
+            animation: fadeIn 2s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @keyframes fadeIn {
@@ -680,427 +253,72 @@
             }
         }
 
-        @keyframes popIn {
-            from {
-                transform: scale(0.95);
-                opacity: 0;
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
             }
 
-            to {
-                transform: scale(1);
-                opacity: 1;
+            .cards-wrapper {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .mode-card {
+                width: 100%;
+                max-width: 340px;
             }
         }
     </style>
+</head>
 
-    <script>
-        const API_URL = "http://127.0.0.1:8000";
-        let chartInstance = null;
-        let currentBacktestData = null; // Store full response
+<body>
 
-        // Error Modal Logic
-        function showError(msg) {
-            document.getElementById('errorMessage').textContent = msg;
-            document.getElementById('errorModal').style.display = 'flex';
-        }
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
 
-        function closeModal() {
-            document.getElementById('errorModal').style.display = 'none';
-        }
+    <div class="container">
+        <header>
+            <h1>AlgoTrade Pro</h1>
+            <p class="subtitle">Advanced algorithmic trading platform powered by AI. Design, test, and deploy automated
+                strategies.</p>
+        </header>
 
-        window.onclick = function (event) {
-            const modal = document.getElementById('errorModal');
-            if (event.target == modal) {
-                closeModal();
-            }
-        }
+        <div class="cards-wrapper">
+            <!-- Backtesting Card -->
+            <a href="/app?mode=backtest" class="mode-card">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <h2>Backtesting Engine</h2>
+                <p class="desc">
+                    Simulate strategies on historical data. Use AI to generate robust algorithms, analyze performance
+                    metrics, and optimize parameters before risking capital.
+                </p>
+                <div class="btn-fake">Launch Backtester <i class="fa-solid fa-arrow-right"
+                        style="margin-left: 8px;"></i></div>
+            </a>
 
-        function updateDateRange() {
-            const interval = document.getElementById('interval').value;
-            const endDateInput = document.getElementById('end_date');
-            const startDateInput = document.getElementById('start_date');
+            <!-- Live Trading Card -->
+            <a href="/app?mode=live" class="mode-card">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-robot"></i>
+                </div>
+                <h2>Live Trading & AI</h2>
+                <p class="desc">
+                    Deploy strategies in real-time markets. Connect to Binance or use Paper Trading. Monitor AI
+                    decision-making live with full portfolio analytics.
+                </p>
+                <div class="btn-fake">Start Live Trading <i class="fa-solid fa-arrow-right"
+                        style="margin-left: 8px;"></i></div>
+            </a>
+        </div>
 
-            const today = new Date();
-            const userTimezoneOffset = today.getTimezoneOffset() * 60000;
-            const localDate = new Date(today.getTime() - userTimezoneOffset);
-            endDateInput.valueAsDate = localDate;
+        <footer>
+            &copy; 2026 AlgoTrade Pro. All systems operational.
+        </footer>
+    </div>
 
-            let daysBack = 365; // Default 1y
-
-            if (interval === '1m') {
-                daysBack = 5;
-            } else if (['2m', '5m'].includes(interval)) {
-                daysBack = 59;
-            } else if (['15m', '30m', '90m', '1h'].includes(interval)) {
-                daysBack = 90;
-            }
-
-            const startDate = new Date();
-            startDate.setDate(today.getDate() - daysBack);
-            const localStartDate = new Date(startDate.getTime() - userTimezoneOffset);
-            startDateInput.valueAsDate = localStartDate;
-        }
-
-        const marketData = {
-            "Indian Stocks": [
-                "HDFCBANK.NS", "RELIANCE.NS", "ICICIBANK.NS", "INFY.NS", "ITC.NS", "TCS.NS",
-                "LT.NS", "BHARTIARTL.NS", "AXISBANK.NS", "SBIN.NS", "KOTAKBANK.NS", "BAJFINANCE.NS",
-                "HCLTECH.NS", "TATAMOTORS.NS", "M&M.NS", "MARUTI.NS", "SUNPHARMA.NS", "TITAN.NS",
-                "ASIANPAINT.NS", "ULTRACEMCO.NS"
-            ],
-            "US Stocks": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "NFLX", "AMD", "SPY"],
-            "Forex": ["EURUSD=X", "GBPUSD=X", "JPY=X", "INR=X", "AUDUSD=X", "USDCAD=X", "USDCHF=X"],
-            "Crypto": ["BTC-USD", "ETH-USD", "BNB-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "ADA-USD"]
-        };
-
-        // Init
-        loadStrategies();
-        updateTickerOptions();
-        updateDateRange();
-
-        function toggleRiskMgmt() {
-            const enabled = document.getElementById('enable_risk').checked;
-            document.getElementById('risk_inputs').style.display = enabled ? 'flex' : 'none';
-        }
-
-        function updateTickerOptions() {
-            const marketType = document.getElementById('market_type').value;
-            const container = document.getElementById('ticker_container');
-            container.innerHTML = '';
-
-            // Just show info, no input
-            const info = document.createElement('div');
-            info.style.color = 'var(--text-secondary)';
-            info.style.fontSize = '14px';
-
-            if (marketType === "Custom") {
-                // Keep input for custom
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.id = 'ticker_input'; // Changed ID
-                input.placeholder = 'AAPL,TSLA (comma separated)';
-                container.appendChild(input);
-            } else {
-                const count = marketData[marketType].length;
-                info.textContent = `Includes ${count} symbols from ${marketType}`;
-                container.appendChild(info);
-            }
-        }
-
-        async function loadStrategies() {
-            try {
-                const res = await fetch(`${API_URL}/strategies`);
-                const data = await res.json();
-                const select = document.getElementById('strategy_file');
-                select.innerHTML = '';
-                data.strategies.forEach(s => {
-                    const opt = document.createElement('option');
-                    opt.value = s;
-                    opt.textContent = s;
-                    select.appendChild(opt);
-                });
-            } catch (e) {
-                console.error("Failed to load strategies", e);
-                showError("Failed to load strategies. Is the backend running?");
-            }
-        }
-
-        async function runBacktest() {
-            const btn = document.querySelector('.btn');
-            const loader = document.getElementById('loader');
-            const btnText = document.getElementById('btnText');
-
-            btn.disabled = true;
-            loader.style.display = 'block';
-            btnText.textContent = 'Running Portfolio Backtest...';
-
-            const riskEnabled = document.getElementById('enable_risk').checked;
-            const marketType = document.getElementById('market_type').value;
-            let tickers = [];
-
-            if (marketType === "Custom") {
-                const val = document.getElementById('ticker_input').value;
-                tickers = val.split(',').map(s => s.trim()).filter(s => s);
-            } else {
-                tickers = marketData[marketType];
-            }
-
-            const payload = {
-                tickers: tickers, // List of tickers
-                start_date: document.getElementById('start_date').value,
-                end_date: document.getElementById('end_date').value,
-                initial_capital: parseFloat(document.getElementById('capital').value),
-                interval: document.getElementById('interval').value,
-                strategy_type: "saved",
-                strategy_file: document.getElementById('strategy_file').value,
-                stop_loss_pct: riskEnabled ? parseFloat(document.getElementById('stop_loss').value) : null,
-                risk_reward_ratio: riskEnabled ? parseFloat(document.getElementById('risk_reward').value) : null
-            };
-
-            // Add Max Active Trades
-            const maxTradesVal = document.getElementById('max_active_trades').value;
-            payload.max_active_trades = parseInt(maxTradesVal) || 1;
-
-            // Add Exit On Signal Preference
-            payload.exit_on_signal = document.getElementById('exit_on_signal').checked;
-
-            try {
-                const res = await fetch(`${API_URL}/backtest`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error(await res.text());
-
-                const data = await res.json();
-                currentBacktestData = data; // Store global
-
-                // Show Analysis View Dropdown
-                setupAnalysisDropdown(data);
-
-                // Show Portfolio View by Default
-                updateDashboard(data.portfolio, "Portfolio");
-
-            } catch (e) {
-                let msg = e.message;
-                try {
-                    const jsonError = JSON.parse(msg);
-                    if (jsonError.detail) msg = jsonError.detail;
-                } catch (err) { }
-                showError(msg);
-            } finally {
-                btn.disabled = false;
-                loader.style.display = 'none';
-                btnText.textContent = 'Run Backtest';
-            }
-        }
-
-        function setupAnalysisDropdown(data) {
-            const container = document.getElementById('analysis_slot');
-            container.innerHTML = ''; // Clear previous
-
-            const select = document.createElement('select');
-            select.id = 'analysis_view';
-            select.style.padding = '8px 12px';
-            select.style.borderRadius = '8px';
-            select.style.border = '1px solid var(--border-color)';
-            select.style.background = 'var(--bg-color)';
-            select.style.color = 'var(--text-primary)';
-            select.style.outline = 'none';
-            select.style.cursor = 'pointer';
-
-            select.onchange = (e) => switchView(e.target.value);
-
-            // Portfolio Option
-            const portOpt = document.createElement('option');
-            portOpt.value = 'PORTFOLIO';
-            portOpt.textContent = 'Total Portfolio';
-            select.appendChild(portOpt);
-
-            // Individual Options
-            const individualKeys = Object.keys(data.individual).sort();
-            individualKeys.forEach(k => {
-                const opt = document.createElement('option');
-                opt.value = k;
-                opt.textContent = k;
-                select.appendChild(opt);
-            });
-
-            container.appendChild(select);
-        }
-
-        function switchView(view) {
-            console.log(`Switching view to: ${view}`);
-            if (!currentBacktestData) return;
-
-            if (view === 'PORTFOLIO') {
-                updateDashboard(currentBacktestData.portfolio, "Portfolio");
-            } else {
-                const indData = currentBacktestData.individual[view];
-                if (indData.error) {
-                    alert(`Error for ${view}: ${indData.error}`);
-                } else {
-                    updateDashboard(indData, view);
-                }
-            }
-        }
-
-        function updateDashboard(data, titleSuffix) {
-            console.log("updateDashboard called with:", { titleSuffix, hasEquityCurve: !!data.equity_curve, equityCurveLength: data.equity_curve?.length });
-
-            // Update Header
-            document.querySelector('.header h2').textContent = `Dashboard - ${titleSuffix}`;
-
-            // Metrics
-            if (data.metrics) {
-                document.getElementById('total_return').textContent = `${data.metrics.total_return.toFixed(2)}%`;
-                document.getElementById('total_return').style.color = data.metrics.total_return >= 0 ? '#10b981' : '#ef4444';
-
-                document.getElementById('win_rate').textContent = `${data.metrics.win_rate.toFixed(1)}%`;
-                document.getElementById('win_rate').style.color = data.metrics.win_rate >= 50 ? '#10b981' : '#eab308';
-
-                document.getElementById('final_equity').textContent = `$${data.metrics.final_equity.toFixed(2)}`;
-                document.getElementById('num_trades').textContent = data.metrics.num_trades;
-            }
-
-            // Summary Table Logic
-            const summarySection = document.getElementById('summarySection');
-            const summaryBody = document.getElementById('summaryBody');
-
-            // Only show summary table for Portfolio view
-            if (data.summary && data.summary.length > 0) {
-                summarySection.style.display = 'block';
-                summaryBody.innerHTML = '';
-
-                data.summary.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.style.cursor = 'pointer';
-                    row.onclick = () => {
-                        const select = document.getElementById('analysis_view');
-                        if (select) {
-                            select.value = item.Symbol;
-                            switchView(item.Symbol);
-                        }
-                    };
-
-                    const color = item['Total Return'] >= 0 ? '#10b981' : '#ef4444';
-                    row.innerHTML = `
-                        <td style="font-weight: 500; color: var(--text-primary);">${item.Symbol}</td>
-                        <td style="color: ${color}; font-weight: bold;">${item['Total Return'].toFixed(2)}%</td>
-                        <td>$${item['Final Equity'].toFixed(2)}</td>
-                        <td>${item.Trades}</td>
-                    `;
-                    summaryBody.appendChild(row);
-                });
-            } else {
-                // Hide summary table when viewing individual symbols
-                summarySection.style.display = 'none';
-            }
-
-            // Chart
-            console.log("About to render chart, equity_curve exists:", !!data.equity_curve);
-            if (data.equity_curve) {
-                renderChart(data.equity_curve);
-            } else {
-                console.warn("No equity curve data to render!");
-            }
-
-            // Table
-            const tbody = document.querySelector('#tradesTable tbody');
-            const thead = document.querySelector('#tradesTable thead tr');
-
-            if (!thead.innerHTML.includes("Symbol")) {
-                const th = document.createElement('th');
-                th.textContent = "Symbol";
-                thead.prepend(th);
-            }
-
-            tbody.innerHTML = '';
-
-            if (!data.trades || data.trades.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">No trades found</td></tr>';
-            } else {
-                const trades = data.trades.slice().reverse().slice(0, 50);
-                trades.forEach(t => {
-                    const tr = document.createElement('tr');
-                    const pnlColor = t.PnL >= 0 ? '#10b981' : '#ef4444';
-                    const symbolVal = t.Symbol || titleSuffix.replace("Dashboard - ", "");
-
-                    tr.innerHTML = `
-                        <td><span class="tag" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa">${symbolVal}</span></td>
-                        <td><span class="tag buy">BUY</span></td>
-                        <td>${formatDate(t['Entry Time'])}</td>
-                        <td>$${t['Entry Price'].toFixed(2)}</td>
-                        <td>${formatDate(t['Exit Time'])}</td>
-                        <td>$${t['Exit Price'].toFixed(2)}</td>
-                        <td><span class="tag" style="background: rgba(255,255,255,0.1);">${t['Exit Reason'] || 'Signal'}</span></td>
-                        <td style="color: ${pnlColor}; font-weight: bold;">$${t['PnL'].toFixed(2)}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-        }
-
-        function renderChart(equityData) {
-            console.log("Rendering Chart points:", equityData ? equityData.length : 0);
-
-            const ctx = document.getElementById('equityChart').getContext('2d');
-
-            if (chartInstance) {
-                chartInstance.destroy();
-                chartInstance = null;
-            }
-
-            if (!equityData || equityData.length === 0) return;
-
-            const labels = equityData.map(d => formatDate(d.time));
-            const values = equityData.map(d => d.value);
-
-            // Create gradient
-            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
-            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
-
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Equity',
-                        data: values,
-                        borderColor: '#3b82f6',
-                        backgroundColor: gradient,
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                        }
-                    },
-                    scales: {
-                        x: { display: false },
-                        y: {
-                            grid: { color: '#334155', borderDash: [5, 5] },
-                            ticks: { color: '#94a3b8' }
-                        }
-                    },
-                    interaction: {
-                        axis: 'x'
-                    }
-                }
-            });
-        }
-
-        function formatDate(dateStr) {
-            const d = new Date(dateStr);
-            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-
-        function toggleTheme() {
-            const body = document.body;
-            const icon = document.getElementById('themeIcon');
-
-            if (body.getAttribute('data-theme') === 'light') {
-                body.removeAttribute('data-theme');
-                icon.classList.remove('fa-moon');
-                icon.classList.add('fa-sun');
-            } else {
-                body.setAttribute('data-theme', 'light');
-                icon.classList.remove('fa-sun');
-                icon.classList.add('fa-moon');
-            }
-        }
-    </script>
 </body>
 
 </html>

@@ -14,7 +14,8 @@ from pydantic import BaseModel
 import pandas as pd
 
 from .analyst import TradingAnalyst
-from .streamer import BinanceOHLCVStreamer
+from .streamer import BinanceOHLCVStreamer, UpstoxOHLCVStreamer
+from .prompt_loader import PromptLoader
 
 from dotenv import load_dotenv
 
@@ -29,10 +30,16 @@ class InitConfig(BaseModel):
     amount: float = 1000.0
     lot_size: Optional[float] = 0.01  # Position size multiplier
     leverage: Optional[float] = 10.0  # Leverage multiplier (default: 10x)
+    prompt_strategy: Optional[str] = "default_strategy"
+    interval: Optional[str] = "1m"
     binance_api_key: Optional[str] = None
     binance_secret_key: Optional[str] = None
     zerodha_api_key: Optional[str] = None
     zerodha_api_secret: Optional[str] = None
+    upstox_api_key: Optional[str] = None
+    upstox_api_secret: Optional[str] = None
+    upstox_redirect_uri: Optional[str] = None
+    upstox_access_token: Optional[str] = None
     ibkr_username: Optional[str] = None
     ibkr_password: Optional[str] = None
     symbols: List[str]
@@ -88,9 +95,34 @@ async def start_trading(config: InitConfig):
             use_mock=False,
             initial_capital=config.amount,
             leverage=config.leverage if hasattr(config, 'leverage') else 10.0,
-            enable_real_trading=(config.trading_mode == "real")
+            enable_real_trading=(config.trading_mode == "real"),
+            broker_config={
+                "broker": config.broker,
+                "binance": {
+                    "api_key": config.binance_api_key or os.getenv("BINANCE_API_KEY"),
+                    "secret_key": config.binance_secret_key or os.getenv("BINANCE_SECRET_KEY")
+                },
+                "zerodha": {
+                    "api_key": config.zerodha_api_key or os.getenv("ZERODHA_API_KEY"),
+                    "api_secret": config.zerodha_api_secret or os.getenv("ZERODHA_API_SECRET")
+                },
+                "upstox": {
+                    "api_key": config.upstox_api_key or os.getenv("UPSTOX_API_KEY"),
+                    "api_secret": config.upstox_api_secret or os.getenv("UPSTOX_API_SECRET"),
+                    "redirect_uri": config.upstox_redirect_uri or os.getenv("UPSTOX_REDIRECT_URI"),
+                    "access_token": config.upstox_access_token or os.getenv("UPSTOX_ACCESS_TOKEN")
+                }
+            }
         )
         
+        # Set prompt strategy
+        if hasattr(config, 'prompt_strategy') and config.prompt_strategy:
+            state.trading_analyst.prompt_strategy = config.prompt_strategy
+            
+        # Set interval
+        if hasattr(config, 'interval') and config.interval:
+            state.trading_analyst.interval = config.interval
+
         # Set lot size if provided
         if hasattr(config, 'lot_size') and config.lot_size:
             state.trading_analyst.lot_size = config.lot_size
@@ -100,16 +132,29 @@ async def start_trading(config: InitConfig):
         binance_api_key = config.binance_api_key or os.getenv("BINANCE_API_KEY")
         binance_secret_key = config.binance_secret_key or os.getenv("BINANCE_SECRET_KEY")
 
-        state.streamer = BinanceOHLCVStreamer(
-            symbols=config.symbols,
-            api_key=binance_api_key,
-            secret_key=binance_secret_key,
-            trading_analyst=state.trading_analyst
-        )
+        # Initialize Streamer based on broker
+        if config.broker == "upstox":
+            upstox_access_token = config.upstox_access_token or os.getenv("UPSTOX_ACCESS_TOKEN")
+            state.streamer = UpstoxOHLCVStreamer(
+                symbols=config.symbols,
+                api_key=config.upstox_api_key,
+                secret_key=config.upstox_api_secret,
+                trading_analyst=state.trading_analyst,
+                access_token=upstox_access_token,
+                interval=config.interval
+            )
+        else:
+            state.streamer = BinanceOHLCVStreamer(
+                symbols=config.symbols,
+                api_key=binance_api_key,
+                secret_key=binance_secret_key,
+                trading_analyst=state.trading_analyst,
+                interval=config.interval
+            )
         
         # Start streaming in background thread
         def run_stream():
-            asyncio.run(state.streamer.start_streaming(fetch_historical=True))
+            asyncio.run(state.streamer.start_streaming(fetch_historical=True, interval=config.interval))
             
         state.stream_thread = threading.Thread(target=run_stream, daemon=True)
         state.stream_thread.start()
@@ -151,6 +196,12 @@ async def stop_trading():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to stop trading system: {str(e)}")
+
+@live_app.get("/prompts")
+async def get_prompts():
+    """Get list of available live trading prompts"""
+    loader = PromptLoader()
+    return {"prompts": list(loader.prompts.keys())}
 
 @live_app.get("/status")
 def get_status():
@@ -195,8 +246,14 @@ def get_status():
                 "cost_basis": round(cost_basis, 2)
             }
         
-        # Get portfolio history as simple array of values
-        portfolio_history = [entry['total_value'] for entry in stats['portfolio_history']]
+        # Get portfolio history with timestamp and active position check
+        portfolio_history = []
+        for entry in stats['portfolio_history']:
+            portfolio_history.append({
+                'value': entry['total_value'],
+                'timestamp': entry['timestamp'].isoformat() if hasattr(entry['timestamp'], 'isoformat') else str(entry['timestamp']),
+                'in_position': bool(entry.get('positions_value', 0) != 0)
+            })
         
         # Get recent decisions from decision_history
         recent_decisions = []
@@ -207,7 +264,21 @@ def get_status():
                 "action": decision['action'],
                 "price": round(decision['price'], 2),
                 "confidence": round(decision['confidence'], 2),
-                "reasoning": decision['reasoning'][:200] if decision['reasoning'] else "N/A"  # Truncate for UI
+                "reasoning": decision['reasoning'] if decision['reasoning'] else "N/A"
+            })
+            
+        # Get recent completed trades
+        recent_trades = []
+        for trade in state.trading_analyst.portfolio['trade_history'][-10:]:
+            recent_trades.append({
+                "symbol": trade['symbol'],
+                "position_type": trade['action'], # CLOSE_LONG -> SELL, CLOSE_SHORT -> BUY usually, but UI can parse
+                "entry_time": trade['entry_time'].isoformat(),
+                "entry_price": round(trade.get('entry_price', 0), 2),
+                "exit_time": trade['exit_time'].isoformat(),
+                "exit_price": round(trade.get('exit_price', 0), 2),
+                "pnl": round(trade['pnl'], 2),
+                "roi_percent": round(trade.get('return_pct', 0), 2)
             })
         
         # Get recent market data for candlestick chart (last 50 candles)
@@ -258,6 +329,7 @@ def get_status():
             "portfolio_history": portfolio_history,
             "current_positions": current_positions,
             "recent_decisions": recent_decisions,
+            "recent_trades": recent_trades,
             "market_data": market_data,
             "trade_markers": trade_markers,
             "metrics": {
@@ -267,7 +339,8 @@ def get_status():
                 "total_trades": stats['total_trades'],
                 "win_rate": round(stats['win_rate'], 2)
             },
-            "symbols": list(state.streamer.symbols) if state.streamer else []
+            "symbols": list(state.streamer.symbols) if state.streamer else [],
+            "currency_symbol": state.trading_analyst.currency_symbol if state.trading_analyst else "$"
         }
         
     except Exception as e:

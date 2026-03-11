@@ -50,28 +50,104 @@ class BacktestEngine:
             
             download_start = download_start_dt.strftime('%Y-%m-%d')
             
-            self.data = yf.download(self.ticker, start=download_start, end=self.end_date, interval=self.interval, progress=False)
-            if self.data.columns.nlevels > 1:
-                 # Flatten columns if multi-level (e.g., from recent yfinance versions)
-                self.data.columns = ['_'.join(col).strip() if col[1] else col[0] for col in self.data.columns.values]
-                
-                # Normalize column names to standard 'Open', 'High', 'Low', 'Close', 'Volume'
-                rename_map = {}
-                for col in self.data.columns:
-                    if 'Close' in col: rename_map[col] = 'Close'
-                    elif 'Open' in col: rename_map[col] = 'Open'
-                    elif 'High' in col: rename_map[col] = 'High'
-                    elif 'Low' in col: rename_map[col] = 'Low'
-                    elif 'Volume' in col: rename_map[col] = 'Volume'
-                self.data.rename(columns=rename_map, inplace=True)
-                
-                # Ensure unique index
-                self.data = self.data[~self.data.index.duplicated(keep='first')]
+            # --- Try Upstox First for Indian Markets ---
+            is_indian_market = self.ticker.endswith('.NS') or self.ticker.endswith('.BO')
+            upstox_df = None
+            if is_indian_market:
+                # Add a few days of buffer to download_start to ensure enough data for indicator calculation
+                upstox_download_dt = download_start_dt - datetime.timedelta(days=7) if self.interval in ['1d'] else download_start_dt
+                upstox_download_start = upstox_download_dt.strftime('%Y-%m-%d')
+                upstox_df = self._fetch_upstox_data(self.ticker, upstox_download_start, self.end_date, self.interval)
+            
+            if upstox_df is not None:
+                self.data = upstox_df
+            else:
+                self.data = yf.download(self.ticker, start=download_start, end=self.end_date, interval=self.interval, progress=False)
+                if self.data.columns.nlevels > 1:
+                     # Flatten columns if multi-level (e.g., from recent yfinance versions)
+                    self.data.columns = ['_'.join(col).strip() if col[1] else col[0] for col in self.data.columns.values]
+                    
+                    # Normalize column names to standard 'Open', 'High', 'Low', 'Close', 'Volume'
+                    rename_map = {}
+                    for col in self.data.columns:
+                        if 'Close' in col: rename_map[col] = 'Close'
+                        elif 'Open' in col: rename_map[col] = 'Open'
+                        elif 'High' in col: rename_map[col] = 'High'
+                        elif 'Low' in col: rename_map[col] = 'Low'
+                        elif 'Volume' in col: rename_map[col] = 'Volume'
+                    self.data.rename(columns=rename_map, inplace=True)
+                    
+                    # Ensure unique index
+                    self.data = self.data[~self.data.index.duplicated(keep='first')]
                 
             return self.data
         except Exception as e:
             print(f"Error loading data: {e}")
             return None
+
+    def _fetch_upstox_data(self, ticker, start_date, end_date, interval):
+        import requests
+        import pandas as pd
+        
+        # Determine Upstox Interval
+        interval_map = {
+            '1m': '1minute',
+            '30m': '30minute',
+            '60m': '60minute',
+            '1h': '60minute',
+            '1d': 'day',
+            '1wk': 'week',
+            '1mo': 'month'
+        }
+        ux_interval = interval_map.get(interval)
+        if not ux_interval:
+            print(f"⚠️ Upstox doesn't support interval '{interval}'. Falling back to yfinance.")
+            return None
+            
+        # Extract base symbol
+        base_symbol = ticker.replace('.NS', '').replace('.BO', '')
+        instrument_key = f"NSE_EQ|{base_symbol}"
+        
+        url = f"https://api.upstox.com/v2/historical-candle/{instrument_key}/{ux_interval}/{end_date}/{start_date}"
+        headers = {'Accept': 'application/json'}
+        
+        try:
+            print(f"🔄 Attempting to fetch {base_symbol} from Upstox API...")
+            res = requests.get(url, headers=headers, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                if data.get('status') == 'success' and 'data' in data and 'candles' in data['data']:
+                    candles = data['data']['candles']
+                    if not candles:
+                        print("⚠️ Upstox returned empty data. Falling back to yfinance.")
+                        return None
+                    
+                    df_data = []
+                    for c in candles:
+                        ts_str = c[0]
+                        if "+" in ts_str:
+                             ts_str = ts_str.split("+")[0]
+                        df_data.append({
+                            'Date': pd.to_datetime(ts_str),
+                            'Open': float(c[1]),
+                            'High': float(c[2]),
+                            'Low': float(c[3]),
+                            'Close': float(c[4]),
+                            'Volume': float(c[5])
+                        })
+                    
+                    df = pd.DataFrame(df_data)
+                    df.set_index('Date', inplace=True)
+                    df.sort_index(inplace=True)
+                    # Convert index to timezone-naive to match expected processing downstream if needed
+                    if df.index.tz is not None:
+                        df.index = df.index.tz_localize(None)
+                    print(f"✅ Successfully loaded {len(df)} rows from Upstox for {base_symbol}")
+                    return df
+            print(f"⚠️ Upstox fetch non-200 or failure (status {res.status_code}). Falling back to yfinance.")
+        except Exception as e:
+            print(f"⚠️ Upstox fetch error: {e}. Falling back to yfinance.")
+        return None
 
     def run_strategy(self, strategy_func, stop_loss_pct=None, risk_reward_ratio=None, max_active_trades=1, exit_on_signal=True):
         """

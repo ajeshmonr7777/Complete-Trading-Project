@@ -1073,16 +1073,16 @@
 
             <div class="control-group vertical" style="margin-top: 10px;">
                 <label>Initial Capital</label>
-                <input type="number" id="initial_capital" value="10000" step="100" min="100"
-                    placeholder="Starting Capital (USD)">
+                <input type="number" id="initial_capital" value="1000" step="100" min="100"
+                    placeholder="Starting Capital">
                 <small style="color: var(--text-secondary); font-size: 11px; margin-top: 4px;">Total starting funds for
                     trading</small>
             </div>
 
             <div class="control-group vertical" style="margin-top: 10px;">
-                <label>Lot Size</label>
-                <input type="number" id="lot_size" value="0.01" step="0.01" min="0.01"
-                    placeholder="Lot Size (default: 0.01)">
+                <label>Trade Quantity</label>
+                <input type="number" id="lot_size" value="0.01" step="0.001" min="0.0001"
+                    placeholder="Trade Quantity (default: 0.01)">
                 <small style="color: var(--text-secondary); font-size: 11px; margin-top: 4px;">Quantity/size for each
                     trade</small>
             </div>
@@ -1093,6 +1093,27 @@
                     placeholder="Leverage (default: 10x)">
                 <small style="color: var(--text-secondary); font-size: 11px; margin-top: 4px;">Leverage multiplier for
                     positions</small>
+            </div>
+
+            <div class="control-group vertical" style="margin-top: 10px;">
+                <label>System Prompt / AI Strategy</label>
+                <select id="live_prompt_strategy">
+                    <option value="default_strategy" selected>Default Strategy</option>
+                </select>
+                <small style="color: var(--text-secondary); font-size: 11px; margin-top: 4px;">Choose the LLM trading
+                    logic template</small>
+            </div>
+
+            <div class="control-group vertical" style="margin-top: 10px;">
+                <label>Candle Interval</label>
+                <select id="live_candle_interval">
+                    <option value="1m" selected>1 Minute</option>
+                    <option value="3m">3 Minutes</option>
+                    <option value="5m">5 Minutes</option>
+                    <option value="15m">15 Minutes</option>
+                </select>
+                <small style="color: var(--text-secondary); font-size: 11px; margin-top: 4px;">Trading frequency &
+                    DeepSeek analysis rate</small>
             </div>
 
             <button class="btn" id="start_live_btn" onclick="startLiveTrading()" style="width: 100%; margin-top: 20px;">
@@ -1138,14 +1159,14 @@
                     <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">PORTFOLIO VALUE
                     </div>
                     <div id="live_portfolio_value"
-                        style="font-size: 28px; font-weight: 700; color: var(--text-primary);">$0.00</div>
+                        style="font-size: 28px; font-weight: 700; color: var(--text-primary);">--</div>
                     <div id="live_pnl_percent" style="font-size: 14px; margin-top: 4px;">+0.00%</div>
                 </div>
 
                 <div class="card" style="padding: 20px;">
                     <div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">CASH BALANCE</div>
                     <div id="live_cash_balance" style="font-size: 28px; font-weight: 700; color: var(--text-primary);">
-                        $0.00</div>
+                        --</div>
                 </div>
 
                 <div class="card" style="padding: 20px;">
@@ -1215,6 +1236,83 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Open Positions Table -->
+            <div class="card" style="padding: 24px; margin-top: 24px;">
+                <h3 style="margin-bottom: 16px; font-size: 18px;">Open Positions</h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    SYMBOL</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    TYPE</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    QUANTITY</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    ENTRY PRICE</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    CURRENT PRICE</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    UNREALIZED PNL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live_positions_table">
+                            <tr>
+                                <td colspan="6"
+                                    style="padding: 24px; text-align: center; color: var(--text-secondary);">No open
+                                    positions.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Completed Trades Table -->
+            <div class="card" style="padding: 24px; margin-top: 24px;">
+                <h3 style="margin-bottom: 16px; font-size: 18px;">Recent Completed Trades</h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    TIME (ENTRY / EXIT)</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    SYMBOL</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    ACTION</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    ENTRY PRICE</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    EXIT PRICE</th>
+                                <th
+                                    style="padding: 12px; text-align: left; color: var(--text-secondary); font-size: 12px; font-weight: 600;">
+                                    PNL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live_trades_table">
+                            <tr>
+                                <td colspan="6"
+                                    style="padding: 24px; text-align: center; color: var(--text-secondary);">No
+                                    completed trades yet.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
         <!-- AI Strategy Generator View -->
@@ -1539,7 +1637,7 @@
     </style>
 
     <script>
-        const API_URL = "http://127.0.0.1:8000";
+        const API_URL = window.location.origin;
         let chartInstance = null;
         let currentBacktestData = null; // Store full response
 
@@ -1716,6 +1814,14 @@
             document.getElementById('selectedMarketLabel').style.display = 'block';
             document.getElementById('currentMarketName').textContent = marketNames[marketType];
 
+            // Setup default currency based on selected market early
+            window.currentCurrency = (marketType === 'indian') ? '₹' : '$';
+            document.getElementById('initial_capital').placeholder = `Starting Capital (${window.currentCurrency})`;
+
+            // Overwrite dashboard nulls with the correct currency initial string
+            document.getElementById('live_portfolio_value').textContent = window.currentCurrency + '0.00';
+            document.getElementById('live_cash_balance').textContent = window.currentCurrency + '0.00';
+
             // Inject dynamic keys
             const keysContainer = document.getElementById('broker_keys_container');
             keysContainer.innerHTML = ''; // Clear previous
@@ -1749,16 +1855,20 @@
             } else if (marketType === 'indian') {
                 keysContainer.innerHTML = `
                    <div class="control-group vertical">
-                        <label>Zerodha API Key</label>
-                        <input type="password" id="zerodha_api_key" placeholder="Kite Connect Key">
+                        <label>Upstox Access Token</label>
+                        <input type="password" id="upstox_access_token" placeholder="Daily Access Token">
                     </div>
                     <div class="control-group vertical">
-                        <label>Zerodha API Secret</label>
-                        <input type="password" id="zerodha_api_secret" placeholder="Kite Connect Secret">
+                        <label>Upstox API Key (Optional)</label>
+                        <input type="password" id="upstox_api_key" placeholder="API Key">
+                    </div>
+                     <div class="control-group vertical">
+                        <label>Upstox API Secret (Optional)</label>
+                        <input type="password" id="upstox_api_secret" placeholder="API Secret" value="67ur69k838">
                     </div>
                     <div class="control-group vertical">
                         <label>Symbol to Trade</label>
-                        <select id="zerodha_symbols">
+                        <select id="upstox_symbols">
                             <option value="TCS" selected>Tata Consultancy Services (TCS)</option>
                             <option value="RELIANCE">Reliance Industries (RELIANCE)</option>
                             <option value="HDFCBANK">HDFC Bank (HDFCBANK)</option>
@@ -1844,6 +1954,8 @@
                     amount: parseFloat(document.getElementById('initial_capital').value) || 10000,
                     lot_size: parseFloat(document.getElementById('lot_size').value) || 0.01,
                     leverage: parseFloat(document.getElementById('leverage').value) || 10.0,
+                    prompt_strategy: document.getElementById('live_prompt_strategy').value || 'default_strategy',
+                    interval: document.getElementById('live_candle_interval').value || '1m',
                     symbols: [] // Will be set based on market
                 };
 
@@ -1854,9 +1966,11 @@
                     const selectedSymbol = document.getElementById('binance_symbols').value;
                     config.symbols = [selectedSymbol]; // Single symbol as array
                 } else if (liveTrading.currentMarket === 'indian') {
-                    config.zerodha_api_key = document.getElementById('zerodha_api_key').value;
-                    config.zerodha_api_secret = document.getElementById('zerodha_api_secret').value;
-                    const selectedSymbol = document.getElementById('zerodha_symbols').value;
+                    config.broker = "upstox"; // Explicitly set broker to Upstox
+                    config.upstox_access_token = document.getElementById('upstox_access_token').value;
+                    config.upstox_api_key = document.getElementById('upstox_api_key').value;
+                    config.upstox_api_secret = document.getElementById('upstox_api_secret').value;
+                    const selectedSymbol = document.getElementById('upstox_symbols').value;
                     config.symbols = [selectedSymbol];
                 } else if (liveTrading.currentMarket === 'us') {
                     config.ibkr_username = document.getElementById('ibkr_username').value;
@@ -1982,6 +2096,7 @@
         // Chart instances (global)
         window.liveEquityChart = null;
         window.liveCandlestickChart = null;
+        window.currentCurrency = '$';
 
         function initLiveCandlestickChart() {
             const canvas = document.getElementById('liveCandlestickChart');
@@ -2033,10 +2148,10 @@
                                     const candle = context.raw.candle;
                                     if (!candle) return '';
                                     return [
-                                        `Open: $${candle.open.toFixed(2)}`,
-                                        `High: $${candle.high.toFixed(2)}`,
-                                        `Low: $${candle.low.toFixed(2)}`,
-                                        `Close: $${candle.close.toFixed(2)}`
+                                        `Open: ${window.currentCurrency}${candle.open.toFixed(2)}`,
+                                        `High: ${window.currentCurrency}${candle.high.toFixed(2)}`,
+                                        `Low: ${window.currentCurrency}${candle.low.toFixed(2)}`,
+                                        `Close: ${window.currentCurrency}${candle.close.toFixed(2)}`
                                     ];
                                 }
                             }
@@ -2049,7 +2164,7 @@
                                 color: 'rgba(255, 255, 255, 0.05)'
                             },
                             ticks: {
-                                callback: value => '$' + value.toLocaleString()
+                                callback: value => window.currentCurrency + value.toLocaleString()
                             }
                         },
                         x: {
@@ -2111,7 +2226,17 @@
                         borderColor: 'rgb(99, 102, 241)',
                         backgroundColor: 'rgba(99, 102, 241, 0.1)',
                         tension: 0.4,
-                        fill: true
+                        fill: true,
+                        segment: {
+                            borderColor: ctx => {
+                                if (!ctx.p1DataRaw) return undefined;
+                                return ctx.p1DataRaw.in_position ? 'rgb(34, 197, 94)' : 'rgb(99, 102, 241)';
+                            },
+                            backgroundColor: ctx => {
+                                if (!ctx.p1DataRaw) return undefined;
+                                return ctx.p1DataRaw.in_position ? 'rgba(34, 197, 94, 0.2)' : 'rgba(99, 102, 241, 0.1)';
+                            }
+                        }
                     }]
                 },
                 options: {
@@ -2120,21 +2245,33 @@
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        annotation: {
+                            annotations: {}
                         }
                     },
                     scales: {
                         y: {
                             beginAtZero: false,
+                            suggestedMin: -10,
+                            suggestedMax: 10,
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.05)'
                             },
                             ticks: {
-                                callback: value => '$' + value.toLocaleString()
+                                callback: value => window.currentCurrency + value.toLocaleString()
                             }
                         },
                         x: {
+                            type: 'time',
+                            time: {
+                                tooltipFormat: 'HH:mm:ss'
+                            },
                             grid: {
                                 color: 'rgba(255, 255, 255, 0.05)'
+                            },
+                            ticks: {
+                                maxTicksLimit: 10
                             }
                         }
                     }
@@ -2148,14 +2285,17 @@
             // Show dashboard
             document.getElementById('live-trading-dashboard').style.display = 'block';
 
+            // Global Currency reference
+            window.currentCurrency = data.currency_symbol || '$';
+
             // Update stats cards
             const portfolioValue = data.portfolio_value || data.metrics?.portfolio_value || 0;
             const cashBalance = data.cash_balance || data.metrics?.cash_balance || 0;
             const tradesCount = data.trades_count || data.metrics?.total_trades || 0;
             const initialValue = data.initial_value || 10000;
 
-            document.getElementById('live_portfolio_value').textContent = '$' + portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            document.getElementById('live_cash_balance').textContent = '$' + cashBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('live_portfolio_value').textContent = window.currentCurrency + portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('live_cash_balance').textContent = window.currentCurrency + cashBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             document.getElementById('live_trades_count').textContent = tradesCount;
 
             // Calculate P&L
@@ -2180,10 +2320,54 @@
                 const history = data.portfolio_history;
                 const initialValue = data.initial_value || 10000;
 
-                // Calculate PnL for each point (difference from initial)
-                const pnlHistory = history.map(value => value - initialValue);
+                // Map to objects with x (timestamp), y (PnL), and in_position color flag
+                const now = new Date().getTime();
+                const pnlHistory = history.map((item, i) => {
+                    const isObj = typeof item === 'object';
+                    return {
+                        x: isObj && item.timestamp ? new Date(item.timestamp).getTime() : now - (history.length - i) * 60000,
+                        y: (isObj ? (item.value || 0) : item) - initialValue,
+                        in_position: isObj ? item.in_position : false
+                    };
+                });
 
-                liveEquityChart.data.labels = pnlHistory.map((_, i) => i.toString());
+                // Construct background shaded regions for active trades
+                const activeAnnotations = {};
+                if (pnlHistory.length > 0) {
+                    let inTrade = false;
+                    let tradeStart = null;
+                    let count = 0;
+
+                    for (let i = 0; i < pnlHistory.length; i++) {
+                        const pt = pnlHistory[i];
+                        if (pt.in_position && !inTrade) {
+                            inTrade = true;
+                            tradeStart = pt.x;
+                        } else if (!pt.in_position && inTrade) {
+                            activeAnnotations[`trade_zone_${count++}`] = {
+                                type: 'box',
+                                xMin: tradeStart,
+                                xMax: pt.x,
+                                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                borderWidth: 0,
+                                drawTime: 'beforeDatasetsDraw'
+                            };
+                            inTrade = false;
+                        }
+                    }
+                    if (inTrade) {
+                        activeAnnotations[`trade_zone_${count++}`] = {
+                            type: 'box',
+                            xMin: tradeStart,
+                            xMax: pnlHistory[pnlHistory.length - 1].x,
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            borderWidth: 0,
+                            drawTime: 'beforeDatasetsDraw'
+                        };
+                    }
+                }
+
+                liveEquityChart.options.plugins.annotation.annotations = activeAnnotations;
                 liveEquityChart.data.datasets[0].data = pnlHistory;
                 liveEquityChart.update('none');
             }
@@ -2253,18 +2437,70 @@
             // Update recent decisions table
             if (data.recent_decisions && data.recent_decisions.length > 0) {
                 const tbody = document.getElementById('live_decisions_table');
-                tbody.innerHTML = data.recent_decisions.slice(0, 10).map(decision => {
+                // Ensure recent decisions are ordered recent first
+                tbody.innerHTML = data.recent_decisions.slice().reverse().slice(0, 10).map(decision => {
                     const actionColor = decision.action === 'BUY' ? 'var(--success-color)' : decision.action === 'SELL' ? 'var(--danger-color)' : 'var(--text-secondary)';
                     const actionBg = decision.action === 'BUY' ? 'rgba(34, 197, 94, 0.1)' : decision.action === 'SELL' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(156, 163, 175, 0.1)';
                     return `
                         <tr style="border-bottom: 1px solid var(--border-color);">
-                            <td style="padding: 12px; font-size: 13px;">${new Date(decision.timestamp).toLocaleTimeString()}</td>
+                            <td style="padding: 12px; font-size: 13px; min-width: 90px;">${new Date(decision.timestamp).toLocaleTimeString()}</td>
                             <td style="padding: 12px; font-size: 13px; font-weight: 600;">${decision.symbol}</td>
                             <td style="padding: 12px;">
                                 <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; background: ${actionBg}; color: ${actionColor};">${decision.action}</span>
                             </td>
-                            <td style="padding: 12px; font-size: 13px;">$${decision.price?.toFixed(2) || 'N/A'}</td>
-                            <td style="padding: 12px; font-size: 13px; max-width: 400px; word-wrap: break-word; white-space: normal;">${decision.reasoning || 'N/A'}</td>
+                            <td style="padding: 12px; font-size: 13px;">${window.currentCurrency}${decision.price?.toFixed(2) || 'N/A'}</td>
+                            <td style="padding: 12px; font-size: 13px; min-width: 400px; max-width: 800px; word-wrap: break-word; white-space: normal;">${decision.reasoning || 'N/A'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // Update open positions table
+            if (data.current_positions && Object.keys(data.current_positions).length > 0) {
+                const tbody = document.getElementById('live_positions_table');
+                tbody.innerHTML = Object.keys(data.current_positions).map(symbol => {
+                    const pos = data.current_positions[symbol];
+                    const pnlColor = pos.unrealized_pnl >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+                    const typeColor = pos.position_type === 'LONG' ? 'var(--success-color)' : 'var(--danger-color)';
+                    return `
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 12px; font-size: 13px; font-weight: 600;">${symbol}</td>
+                            <td style="padding: 12px; font-size: 13px; font-weight: 600; color: ${typeColor};">${pos.position_type}</td>
+                            <td style="padding: 12px; font-size: 13px;">${pos.quantity}</td>
+                            <td style="padding: 12px; font-size: 13px;">${window.currentCurrency}${pos.entry_price?.toFixed(2) || '0.00'}</td>
+                            <td style="padding: 12px; font-size: 13px;">${window.currentCurrency}${pos.current_price?.toFixed(2) || '0.00'}</td>
+                            <td style="padding: 12px; font-size: 13px; font-weight: 600; color: ${pnlColor};">${window.currentCurrency}${pos.unrealized_pnl?.toFixed(2) || '0.00'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                document.getElementById('live_positions_table').innerHTML = `
+                    <tr>
+                        <td colspan="6" style="padding: 24px; text-align: center; color: var(--text-secondary);">No open positions.</td>
+                    </tr>
+                `;
+            }
+
+            // Update recent completed trades table
+            if (data.recent_trades && data.recent_trades.length > 0) {
+                const tbody = document.getElementById('live_trades_table');
+                tbody.innerHTML = data.recent_trades.slice().reverse().slice(0, 10).map(trade => {
+                    const pnlColor = trade.pnl >= 0 ? 'var(--success-color)' : 'var(--danger-color)';
+                    const actionColor = trade.position_type === 'BUY' || trade.position_type === 'CLOSE_SHORT' ? 'var(--success-color)' : (trade.position_type === 'SELL' || trade.position_type === 'CLOSE_LONG' ? 'var(--danger-color)' : 'var(--text-secondary)');
+                    return `
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 12px; font-size: 13px; line-height: 1.5;">
+                                <span style="color: var(--success-color);">E: ${new Date(trade.entry_time).toLocaleTimeString()}</span><br>
+                                <span style="color: var(--danger-color);">X: ${new Date(trade.exit_time).toLocaleTimeString()}</span>
+                            </td>
+                            <td style="padding: 12px; font-size: 13px; font-weight: 600;">${trade.symbol}</td>
+                            <td style="padding: 12px; font-size: 13px; font-weight: 600; color: ${actionColor};">${trade.position_type}</td>
+                            <td style="padding: 12px; font-size: 13px;">${window.currentCurrency}${trade.entry_price?.toFixed(2) || '0.00'}</td>
+                            <td style="padding: 12px; font-size: 13px;">${window.currentCurrency}${trade.exit_price?.toFixed(2) || '0.00'}</td>
+                            <td style="padding: 12px; font-size: 13px; font-weight: 600; color: ${pnlColor};">
+                                ${window.currentCurrency}${trade.pnl?.toFixed(2) || '0.00'} 
+                                <span style="font-size: 11px; opacity: 0.8; margin-left: 4px;">(${trade.roi_percent > 0 ? '+' : ''}${trade.roi_percent?.toFixed(2) || '0.00'}%)</span>
+                            </td>
                         </tr>
                     `;
                 }).join('');
@@ -2543,7 +2779,31 @@
         };
 
         // Init
+        async function loadLivePrompts() {
+            try {
+                const response = await fetch(`${API_URL}/api/live/prompts`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const select = document.getElementById('live_prompt_strategy');
+                    if (select) {
+                        select.innerHTML = '';
+                        data.prompts.forEach(p => {
+                            const opt = document.createElement('option');
+                            opt.value = p;
+                            let displayName = p.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            opt.textContent = displayName;
+                            if (p === 'default_strategy') opt.selected = true;
+                            select.appendChild(opt);
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("Error loading live prompts:", err);
+            }
+        }
+
         loadStrategies();
+        loadLivePrompts();
         updateTickerOptions();
         updateDateRange();
 

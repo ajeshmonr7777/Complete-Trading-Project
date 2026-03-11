@@ -11,10 +11,9 @@ import os
 
 # Import from separate modules (using live_ prefix)
 from .indicators import calculate_technical_indicators
-from .prompts import create_system_prompt
+from .prompt_loader import create_system_prompt
 import csv
 import glob
-# Note: bybit_trading and paper_trading removed for simplified version
 
 
 class TradingAnalyst:
@@ -28,21 +27,27 @@ class TradingAnalyst:
             print(f"⚙️ TradingAnalyst: Updating lot_size from {self._lot_size} to {value}")
             self._lot_size = value
 
-    def __init__(self, deepseek_api_key: str, use_mock: bool = False, initial_capital: float = 1000.0, leverage: float = 10.0, enable_real_trading: bool = False):
+    def __init__(self, deepseek_api_key: str, use_mock: bool = False, initial_capital: float = 1000.0, leverage: float = 10.0, enable_real_trading: bool = False, broker_config: Dict = None):
         self.deepseek_api_key = deepseek_api_key
         self.base_url = "https://api.deepseek.com/chat/completions"
         self.use_mock = use_mock
         self.initial_capital = initial_capital
         self.enable_real_trading = enable_real_trading
         self.leverage = leverage  # Leverage multiplier (default: 10x)
-        self._lot_size = 0.01  # Default lot size
+        self._lot_size = 1.0  # Default trade quantity
+        self.broker_config = broker_config or {}
+        self.upstox_base_url = "https://api.upstox.com/v2"
         
         # Trading parameters
         self.interval = "1m"
         self.ema_period = 20
         self.rsi_period = 14
-        self.prompt_strategy = "prompt3" # Default strategy
+        self.prompt_strategy = "default_strategy" # Default strategy template
         self.prompt_builder = create_system_prompt
+        
+        # Currency symbol setup
+        broker = self.broker_config.get("broker", "paper")
+        self.currency_symbol = "₹" if broker in ["upstox", "indian"] else "$"
         
         # Portfolio state - PERSISTS between calls
         self.portfolio = {
@@ -342,8 +347,12 @@ class TradingAnalyst:
         if action == "SELL" and has_position and current_position_type == "SHORT":
             return {**result, 'message': f"❌ Already SHORT {symbol}. Close first."}
         
+        if action == "HOLD":
+            result['message'] = f"HOLDING {symbol}"
+            # No further action needed for HOLD
+        
         # Execute OPENING trades
-        if not has_position:
+        elif not has_position:
             # Use lot_size as exact quantity to buy/sell
             quantity = self._lot_size
             position_value = quantity * current_price
@@ -374,7 +383,13 @@ class TradingAnalyst:
                 # Real Trading Hook
                 if self.enable_real_trading:
                     print(f"🚀 [REAL TRADE REQUEST] BUY {quantity:.6f} {symbol} @ {current_price}")
-                    # Broker specific API call would go here
+                    broker = self.broker_config.get("broker")
+                    if broker == "upstox":
+                        trade_res = self._execute_upstox_trade("BUY", symbol, quantity, current_price)
+                        if trade_res['executed']:
+                            result['message'] += f" [REAL: {trade_res['message']}]"
+                        else:
+                            result['message'] += f" [REAL FAILED: {trade_res['message']}]"
                     
             elif action == "SELL": # SHORT
                  self.portfolio['positions'][symbol] = {
@@ -393,6 +408,13 @@ class TradingAnalyst:
                  # Real Trading Hook
                  if self.enable_real_trading:
                     print(f"🚀 [REAL TRADE REQUEST] SELL-SHORT {quantity:.6f} {symbol} @ {current_price}")
+                    broker = self.broker_config.get("broker")
+                    if broker == "upstox":
+                        trade_res = self._execute_upstox_trade("SELL", symbol, quantity, current_price)
+                        if trade_res['executed']:
+                            result['message'] += f" [REAL: {trade_res['message']}]"
+                        else:
+                            result['message'] += f" [REAL FAILED: {trade_res['message']}]"
         
         # Execute CLOSING trades
         elif has_position:
@@ -411,7 +433,7 @@ class TradingAnalyst:
                 close_action = 'BUY'
             
             # Check validity
-            if (position_type == 'LONG' and action == 'SELL') or (position_type == 'SHORT' and action == 'BUY'):
+            if (position_type == 'LONG' and action in ['SELL', 'CLOSE']) or (position_type == 'SHORT' and action in ['BUY', 'CLOSE']):
                 # Return margin + PnL to available cash
                 self.portfolio['available_cash'] += margin_used + pnl
                 
@@ -442,16 +464,81 @@ class TradingAnalyst:
                 # Real Trading Hook
                 if self.enable_real_trading:
                     print(f"🚀 [REAL TRADE REQUEST] CLOSE {position_type} {symbol}")
+                    broker = self.broker_config.get("broker")
+                    if broker == "upstox":
+                        # Close means opposite action
+                        trade_res = self._execute_upstox_trade(close_action, symbol, quantity, current_price)
+                        if trade_res['executed']:
+                            result['message'] += f" [REAL: {trade_res['message']}]"
+                        else:
+                            result['message'] += f" [REAL FAILED: {trade_res['message']}]"
         
-        elif action == "HOLD":
-             result['message'] = f"HOLDING {symbol}"
-             
         if result['executed']:
              print(f"💰 PORTFOLIO: {result['message']}")
              self.update_portfolio_history({symbol: current_price})
              
         return result
     
+    def _execute_upstox_trade(self, action: str, symbol: str, quantity: float, price: float) -> Dict:
+        """Execute trade on Upstox"""
+        upstox_config = self.broker_config.get("upstox", {})
+        access_token = upstox_config.get("access_token")
+        
+        if not access_token:
+            return {"executed": False, "message": "❌ Upstox Access Token missing"}
+            
+        try:
+            # Map action to Upstox transaction type
+            # BUY/SELL
+            transaction_type = "BUY" if action == "BUY" else "SELL"
+            
+            # NOTE: Symbol mapping might be needed. Upstox uses ISIN or specific format like NSE_EQ|INE...
+            # For now, assuming symbol is passed in a format Upstox accepts or user is using correct symbols (e.g. NSE_EQ|RELIANCE)
+            # If using generic symbols like 'RELIANCE', we might need to lookup instrument_token. 
+            # For simplicity, we assume symbol is passed correctly or we use a basic EQ assumption if it looks like a stock.
+            
+            instrument_token = symbol
+            # Basic heuristic: if it doesn't have pipe, assume NSE_EQ
+            if "|" not in symbol and not symbol.endswith("USDT"):
+                 instrument_token = f"NSE_EQ|{symbol}"
+            
+            url = f"{self.upstox_base_url}/order/place"
+            
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': f'Bearer {access_token}'
+            }
+            
+            data = {
+                "quantity": int(quantity) if quantity >= 1 else quantity, # Upstox usually expects int for stocks
+                "product": "D", # D for Delivery, I for Intraday. Defaulting to Delivery for swing.
+                "validity": "DAY",
+                "price": 0, # Market order
+                "tag": "AI_BOT",
+                "instrument_token": instrument_token,
+                "order_type": "MARKET",
+                "transaction_type": transaction_type,
+                "disclosed_quantity": 0,
+                "trigger_price": 0,
+                "is_amo": False
+            }
+            
+            print(f"📤 Sending Upstox Order: {json.dumps(data)}")
+            
+            response = requests.post(url, headers=headers, json=data)
+            response_json = response.json()
+            
+            if response.status_code == 200 and response_json.get("status") == "success":
+                order_id = response_json.get("data", {}).get("order_id")
+                return {"executed": True, "message": f"✅ Upstox Order Placed: {order_id}", "order_id": order_id}
+            else:
+                error_msg = response_json.get("errors", [{"message": "Unknown error"}])[0]["message"]
+                return {"executed": False, "message": f"❌ Upstox Error: {error_msg}"}
+                
+        except Exception as e:
+            return {"executed": False, "message": f"❌ Upstox Exception: {str(e)}"}
+
     def check_liquidation(self, symbol: str, current_price: float) -> bool:
         """Check if a position should be liquidated due to price hitting liquidation level"""
         if symbol not in self.portfolio['positions']:
@@ -754,33 +841,21 @@ RISK_MANAGEMENT: Using real API analysis
         # Get account info with REAL current price and portfolio state
         account_info = self.get_portfolio_summary(symbol, current_price)
         
-        # Create and save prompt using selected strategy
-        # For prompt3, pass additional parameters
-        # For prompt3 and prompt4, pass additional parameters
-        if self.prompt_strategy in ['prompt3', 'prompt4']:
-            system_prompt = self.prompt_builder(
-                minutes_elapsed=minutes_elapsed,
-                indicators=indicators,
-                account_info=account_info,
-                symbol=symbol,
-                interval=self.interval,
-                ema_period=self.ema_period,
-                rsi_period=self.rsi_period,
-                leverage=self.leverage,
-                ohlcv_data=ohlcv_data,
-                decision_history=self.decision_history
-            )
-        else:
-            system_prompt = self.prompt_builder(
-                minutes_elapsed=minutes_elapsed,
-                indicators=indicators,
-                account_info=account_info,
-                symbol=symbol,
-                interval=self.interval,
-                ema_period=self.ema_period,
-                rsi_period=self.rsi_period,
-                leverage=self.leverage
-            )
+        # Create and save prompt using selected strategy dynamically
+        system_prompt = self.prompt_builder(
+            prompt_name=self.prompt_strategy,  # Route to correct YAML template
+            minutes_elapsed=minutes_elapsed,
+            indicators=indicators,
+            account_info=account_info,
+            symbol=symbol,
+            interval=self.interval,
+            ema_period=self.ema_period,
+            rsi_period=self.rsi_period,
+            leverage=self.leverage,
+            currency_symbol=self.currency_symbol,
+            ohlcv_data=ohlcv_data,
+            decision_history=self.decision_history
+        )
         timestamp = datetime.now()
         # Prompt saving moved to after decision
         
@@ -790,21 +865,19 @@ RISK_MANAGEMENT: Using real API analysis
         # Parse response
         decision = self.parse_trading_decision(api_response)
         
-        # Save decision to history for prompt3
-        # Save decision to history for prompt3 and prompt4
-        if self.prompt_strategy in ['prompt3', 'prompt4']:
-            decision_record = {
-                'timestamp': timestamp,
-                'symbol': symbol,
-                'action': decision.get('action', 'UNKNOWN'),
-                'confidence': decision.get('confidence', 0.0),
-                'price': current_price,
-                'reasoning': decision.get('justification', ''),  # Full REASONING TRACE for detailed analysis
-            }
-            self.decision_history.append(decision_record)
-            
-            if len(self.decision_history) > 20:
-                self.decision_history.pop(0)
+        # Save decision to history
+        decision_record = {
+            'timestamp': timestamp,
+            'symbol': symbol,
+            'action': decision.get('action', 'UNKNOWN'),
+            'confidence': decision.get('confidence', 0.0),
+            'price': current_price,
+            'reasoning': decision.get('justification', ''), 
+        }
+        self.decision_history.append(decision_record)
+        
+        if len(self.decision_history) > 20:
+            self.decision_history.pop(0)
         
         # Handle CLOSE action mapping
         if decision.get('action') == 'CLOSE':
@@ -839,8 +912,12 @@ RISK_MANAGEMENT: Using real API analysis
             
             # If trade was blocked due to safety check, override the action to HOLD
             if not trade_result['executed']:
+                attempted_action = decision['action']
                 decision['action'] = "HOLD"
-                decision['justification'] = f"Safety blocked {decision['action']}: {trade_result['message']}"
+                decision['justification'] = f"Safety blocked {attempted_action}: {trade_result['message']}"
+                if self.decision_history:
+                    self.decision_history[-1]['action'] = "HOLD"
+                    self.decision_history[-1]['reasoning'] = decision['justification']
         
         # --- LOGGING & SAVING ---
         

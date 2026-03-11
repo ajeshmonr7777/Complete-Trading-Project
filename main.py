@@ -11,7 +11,8 @@ import datetime
 import shutil
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
+import requests
 
 # Import live trading server
 from live_trading.server import live_app
@@ -41,6 +42,65 @@ def read_root():
 @app.get("/app")
 def read_app():
     return FileResponse('frontend_static/app.html')
+
+@app.get("/upstox/login")
+def upstox_login():
+    api_key = os.getenv("UPSTOX_API_KEY")
+    redirect_uri = os.getenv("UPSTOX_REDIRECT_URI")
+    if not api_key or not redirect_uri:
+        raise HTTPException(status_code=400, detail="Upstox API key or Redirect URI missing in .env")
+        
+    url = f"https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id={api_key}&redirect_uri={redirect_uri}"
+    return RedirectResponse(url)
+
+@app.get("/upstox/callback")
+def upstox_callback(code: str):
+    api_key = os.getenv("UPSTOX_API_KEY")
+    api_secret = os.getenv("UPSTOX_API_SECRET")
+    redirect_uri = os.getenv("UPSTOX_REDIRECT_URI")
+    
+    url = 'https://api.upstox.com/v2/login/authorization/token'
+    headers = {
+        'accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+    }
+    data = {
+        'code': code,
+        'client_id': api_key,
+        'client_secret': api_secret,
+        'redirect_uri': redirect_uri,
+        'grant_type': 'authorization_code',
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            token_data = response.json()
+            access_token = token_data.get("access_token")
+            
+            # Save to .env securely
+            env_path = ".env"
+            if os.path.exists(env_path):
+                with open(env_path, "r") as f:
+                    lines = f.readlines()
+                with open(env_path, "w") as f:
+                    for line in lines:
+                        if line.startswith("UPSTOX_ACCESS_TOKEN="):
+                            f.write(f"UPSTOX_ACCESS_TOKEN={access_token}\n")
+                        else:
+                            f.write(line)
+                            
+            # Update memory so it works instantly without rebooting
+            os.environ["UPSTOX_ACCESS_TOKEN"] = access_token
+            
+            return {
+                "status": "success", 
+                "message": "Upstox authenticated successfully! The access token has been saved to your .env file. You can now close this tab and start Live Trading."
+            }
+        else:
+            return {"status": "error", "message": f"Upstox Auth failed: {response.text}"}
+    except Exception as e:
+        return {"status": "error", "message": f"Server error during auth: {str(e)}"}
 
 class BacktestRequest(BaseModel):
     tickers: List[str]
